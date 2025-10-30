@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
+    id="cordova-plugin-seer" version="1.0.0">
+    <name>CordovaSeer</name>
+    <description>Seer Cordova Plugin</description>
+    <license>Apache 2.0</license>
+    <keywords>cordova,douyin,sdk</keywords>
+    <repo>https://github.com/tadazly/cordova-plugin-seer.git</repo>
+
+    <js-module src="www/CordovaSeer.js" name="CordovaSeer">
+        <clobbers target="CordovaSeer" />
+        <clobbers target="cordova.plugins.Seer" />
+    </js-module>
+
+    <!-- android -->
+    <platform name="android">
+        <config-file parent="/*" target="res/xml/config.xml">
+            <feature name="CordovaSeer">
+                <param name="android-package" value="com.tadazly.seer.CordovaSeerPlugin" />
+            </feature>
+        </config-file>
+
+        <source-file src="src/android/CordovaSeerPlugin.java" target-dir="src/com/tadazly/seer" />
+    </platform>
+
+    <!-- ios -->
+    <platform name="ios">
+        <config-file target="config.xml" parent="/*">
+            <feature name="CordovaSeer">
+                <param name="ios-package" value="CordovaSeerPlugin"/>
+            </feature>
+        </config-file>
+
+        <!-- Plugin source code -->
+        <header-file src="src/ios/CordovaSeerPlugin.h" />
+        <source-file src="src/ios/CordovaSeerPlugin.m" />
+    </platform>
+</plugin>

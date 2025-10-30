@@ -1,0 +1,28 @@
+{
+  "name": "cordova-plugin-seer",
+  "version": "1.0.0",
+  "description": "cordova app 通用接口",
+  "cordova": {
+    "id": "cordova-plugin-seer",
+    "platforms": [
+      "android",
+      "ios"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tadazly/cordova-plugin-seer.git"
+  },
+  "keywords": [
+    "cordova",
+    "ecosystem:cordova",
+    "cordova-android"
+  ],
+  "author": "tadazly",
+  "license": "Apache 2.0",
+  "bugs": {
+    "url": "https://github.com/tadazly/cordova-plugin-seer/issues"
+  },
+  "homepage": "https://github.com/tadazly/cordova-plugin-seer#readme",
+  "types": "./types/index.d.ts"
+}
