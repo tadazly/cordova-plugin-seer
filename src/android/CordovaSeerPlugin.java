@@ -172,14 +172,15 @@ public class CordovaSeerPlugin extends CordovaPlugin {
         String pkg = context.getPackageName();
         PackageManager pm = context.getPackageManager();
 
+        // 预先拼出目标别名的全路径名
+        String targetFullName = pkg + ".Launcher" + alias;
+
         try {
             PackageInfo info = pm.getPackageInfo(pkg, PackageManager.GET_ACTIVITIES | PackageManager.MATCH_DISABLED_COMPONENTS);
             for (ActivityInfo activity : info.activities) {
-                if (activity.targetActivity == null) continue;
                 if (!activity.name.contains("Launcher")) continue;
 
-                boolean shouldEnable = activity.name.endsWith(alias)
-                        || activity.name.equals(pkg + alias);
+                boolean shouldEnable = activity.name.equals(targetFullName);
                 ComponentName component = new ComponentName(pkg, activity.name);
 
                 pm.setComponentEnabledSetting(
