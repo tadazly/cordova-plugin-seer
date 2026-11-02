@@ -97,7 +97,7 @@ await CordovaSeer.saveImageToAlbum(fileEntry.nativeURL, { fileName: "精灵攻�
 - `options.fileName`：可省略，默认生成唯一文件名；最多 120 字符，不含目录。扩展名按文件实际格式修正；Android 同名文件不会覆盖。
 - 返回 `{ uri, fileName, mimeType }`。Android 的 `uri` 为 MediaStore `content://`；iOS 为 `ph://` 加 Photos 的 localIdentifier。这些是相册资源标识，不能作为普通文件路径交给 File 插件。
 - 原样复制 PNG/JPEG，不缩放、不重新编码，也不删除调用方文件。大图优先使用本地路径，减少 base64 跨 Cordova 桥接的内存占用。此接口不参与 Egret 绘图，不能绕过图片生成时的纹理和内存限制。
-- Android 10+ 使用 MediaStore，保存至 `Pictures/Seer`，无需相册读取或存储权限。Android 7–9 首次保存按需请求旧版存储读写权限；插件声明 `READ_EXTERNAL_STORAGE`、`WRITE_EXTERNAL_STORAGE` 且都限定 `maxSdkVersion=28`，构建脚本须保留这些带版本限制的声明。
+- Android 10+ 使用 MediaStore，保存至 `Pictures/Seer`，无需相册读取或存储权限。Android 7–9 首次保存按需请求旧版存储读写权限；插件声明 `READ_EXTERNAL_STORAGE`、`WRITE_EXTERNAL_STORAGE` 且都限定 `maxSdkVersion=28`，构建脚本须保留这些带版本限制的声明。Lite 项目的共享 `after_prepare` 脚本 `remove_permissions.js` 会合并各插件的同名存储声明：如 DYGame 需要无限制读取权限，则保留该声明；多个有限上限取最大值。卸载渠道插件后，下一次 `prepare` 按当前插件清单恢复相册的受限声明，无需临时修改脚本。
 - iOS 使用 Photos，iOS 14+ 仅申请添加权限；iOS 13 在首次创建图片时由系统申请添加权限。插件自动补充 `NSPhotoLibraryAddUsageDescription`，不为保存功能请求相册读取权限。
 - 错误为 `{ code, message }`：`INVALID_ARGUMENT`、`INVALID_SOURCE`、`FILE_NOT_FOUND`、`INVALID_IMAGE`、`PERMISSION_DENIED`、`MISSING_PERMISSION`、`MISSING_USAGE_DESCRIPTION`、`SAVE_FAILED`、`BUSY`。设置页打开失败返回 `OPEN_SETTINGS_FAILED`。拒绝授权后由用户在系统设置中恢复权限，再重试即可。
 
