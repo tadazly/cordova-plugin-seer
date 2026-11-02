@@ -1,6 +1,9 @@
 {
   "name": "cordova-plugin-seer",
   "version": "1.0.0",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
   "description": "cordova app 通用接口",
   "cordova": {
     "id": "cordova-plugin-seer",

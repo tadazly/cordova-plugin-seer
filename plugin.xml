@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
+    xmlns:android="http://schemas.android.com/apk/res/android"
     id="cordova-plugin-seer" version="1.0.0">
     <name>CordovaSeer</name>
     <description>Seer Cordova Plugin</description>
@@ -14,6 +15,10 @@
 
     <!-- android -->
     <platform name="android">
+        <config-file target="AndroidManifest.xml" parent="/*">
+            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+        </config-file>
         <config-file parent="/*" target="res/xml/config.xml">
             <feature name="CordovaSeer">
                 <param name="android-package" value="com.tadazly.seer.CordovaSeerPlugin" />
@@ -21,10 +26,16 @@
         </config-file>
 
         <source-file src="src/android/CordovaSeerPlugin.java" target-dir="src/com/tadazly/seer" />
+        <source-file src="src/android/SeerImageAlbum.java" target-dir="src/com/tadazly/seer" />
     </platform>
 
     <!-- ios -->
     <platform name="ios">
+        <config-file target="*-Info.plist" parent="NSPhotoLibraryAddUsageDescription">
+            <string>用于将游戏截图保存到系统相册。</string>
+        </config-file>
+        <framework src="Photos.framework" />
+        <framework src="ImageIO.framework" />
         <config-file target="config.xml" parent="/*">
             <feature name="CordovaSeer">
                 <param name="ios-package" value="CordovaSeerPlugin"/>
@@ -34,5 +45,7 @@
         <!-- Plugin source code -->
         <header-file src="src/ios/CordovaSeerPlugin.h" />
         <source-file src="src/ios/CordovaSeerPlugin.m" />
+        <header-file src="src/ios/SeerImageAlbum.h" />
+        <source-file src="src/ios/SeerImageAlbum.m" />
     </platform>
 </plugin>

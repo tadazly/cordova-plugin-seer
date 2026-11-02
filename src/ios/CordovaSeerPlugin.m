@@ -1,6 +1,41 @@
 #import "CordovaSeerPlugin.h"
+#import "SeerImageAlbum.h"
+
+#import <UIKit/UIKit.h>
 
 @implementation CordovaSeerPlugin
+
+- (void)getPhotoAlbumPermissionStatus:(CDVInvokedUrlCommand *)command
+{
+    CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK
+                                         messageAsDictionary:[SeerImageAlbum permissionStatus]];
+    [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+}
+
+- (void)openAppSettings:(CDVInvokedUrlCommand *)command
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [UIApplication.sharedApplication openURL:[NSURL URLWithString:UIApplicationOpenSettingsURLString]
+                                        options:@{} completionHandler:^(BOOL success) {
+            CDVPluginResult *result = success
+                ? [CDVPluginResult resultWithStatus:CDVCommandStatus_OK]
+                : [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
+                              messageAsDictionary:@{@"code": @"OPEN_SETTINGS_FAILED", @"message": @"无法打开应用设置"}];
+            [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+        }];
+    });
+}
+
+- (void)saveImageToAlbum:(CDVInvokedUrlCommand *)command
+{
+    id source = [command argumentAtIndex:0];
+    id name = [command argumentAtIndex:1];
+    [SeerImageAlbum saveSource:source fileName:name completion:^(NSDictionary *value, BOOL success) {
+        CDVPluginResult *result = [CDVPluginResult resultWithStatus:success ? CDVCommandStatus_OK : CDVCommandStatus_ERROR
+                                              messageAsDictionary:value];
+        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+    }];
+}
 
 - (void)isPrimaryAppIcon:(CDVInvokedUrlCommand *_Nonnull)command
 {
@@ -89,6 +124,140 @@
     } else {
         result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"unknown"];
     }
+    [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+}
+
+- (void)getSafeAreaXywh:(CDVInvokedUrlCommand *_Nonnull)command
+{
+    UIViewController *vc = self.viewController;
+    UIView *view = nil;
+    if (vc && vc.view) {
+        view = vc.view;
+    } else if (self.webView && self.webView.superview) {
+        // Fallback: 用 webview 的父容器视图计算
+        view = self.webView.superview;
+    } else {
+        view = self.webView;
+    }
+
+    if (!view) {
+        CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"view is null"];
+        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+        return;
+    }
+
+    CGFloat scale = [UIScreen mainScreen].scale;
+    CGRect bounds = view.bounds;
+
+    UIEdgeInsets safeInsets = UIEdgeInsetsZero;
+    if (@available(iOS 11.0, *)) {
+        safeInsets = view.safeAreaInsets;
+    }
+
+    BOOL usedInsets = !UIEdgeInsetsEqualToEdgeInsets(safeInsets, UIEdgeInsetsZero);
+
+    // iOS 没有直接等价 Android DisplayCutout 的 API，这里用经验阈值推断“刘海/挖孔”安全区域
+    // safeAreaInsets.top/bottom 在带刘海设备上通常显著大于纯状态栏/底栏的最小值。
+    BOOL hasCutout = safeInsets.top > 20.0f || safeInsets.bottom > 0.0f;
+    BOOL usedCutout = hasCutout;
+    NSString *source = @"fallback-none";
+    if (usedCutout) {
+        source = @"cutout+insets";
+    } else if (usedInsets) {
+        source = @"insets";
+    }
+
+    CGFloat xPts = safeInsets.left;
+    CGFloat yPts = safeInsets.top;
+    CGFloat wPts = bounds.size.width - safeInsets.left - safeInsets.right;
+    CGFloat hPts = bounds.size.height - safeInsets.top - safeInsets.bottom;
+
+    if (wPts <= 0.0f || hPts <= 0.0f) {
+        // 对应 Android 的兜底：避免返回 0 宽高导致前端无法计算布局
+        xPts = 0.0f;
+        yPts = 0.0f;
+        wPts = bounds.size.width;
+        hPts = bounds.size.height;
+        source = @"fallback-fullscreen";
+    }
+
+    CGFloat xPx = xPts * scale;
+    CGFloat yPx = yPts * scale;
+    CGFloat wPx = wPts * scale;
+    CGFloat hPx = hPts * scale;
+
+    int screenWidthPx = (int)llround(bounds.size.width * scale);
+    int screenHeightPx = (int)llround(bounds.size.height * scale);
+
+    // orientation / rotation：尽量对齐安卓字段含义（1=portrait, 2=landscape）
+    UIInterfaceOrientation io = vc ? vc.interfaceOrientation : UIInterfaceOrientationPortrait;
+    BOOL isLandscape = (io == UIInterfaceOrientationLandscapeLeft || io == UIInterfaceOrientationLandscapeRight);
+    int orientation = isLandscape ? 2 : 1;
+    int rotation = 0;
+    if (io == UIInterfaceOrientationLandscapeLeft) {
+        rotation = 1;
+    } else if (io == UIInterfaceOrientationLandscapeRight) {
+        rotation = 3;
+    } else {
+        rotation = 0;
+    }
+
+    BOOL isFullscreen = (safeInsets.top <= 0.0f && safeInsets.bottom <= 0.0f);
+    BOOL statusBarLikelyHidden = safeInsets.top <= 0.0f;
+    BOOL navigationBarLikelyHidden = safeInsets.bottom <= 0.0f;
+
+    NSMutableDictionary *out = [NSMutableDictionary dictionary];
+    [out setObject:@((int)llround(xPx)) forKey:@"x"];
+    [out setObject:@((int)llround(yPx)) forKey:@"y"];
+    [out setObject:@((int)llround(wPx)) forKey:@"w"];
+    [out setObject:@((int)llround(hPx)) forKey:@"h"];
+
+    // 机型/系统信息（尽量对齐安卓字段）
+    NSString *model = [UIDevice currentDevice].model;
+    [out setObject:model ?: @"" forKey:@"model"];
+    [out setObject:@"Apple" forKey:@"brand"];
+    [out setObject:@"Apple" forKey:@"manufacturer"];
+
+    NSString *systemVersion = [[UIDevice currentDevice] systemVersion];
+    int sdkInt = (int)systemVersion.intValue;
+    [out setObject:@(sdkInt) forKey:@"sdkInt"];
+    [out setObject:source forKey:@"source"];
+
+    [out setObject:@(screenWidthPx) forKey:@"screenWidth"];
+    [out setObject:@(screenHeightPx) forKey:@"screenHeight"];
+    [out setObject:@(rotation) forKey:@"rotation"];
+    [out setObject:@(orientation) forKey:@"orientation"];
+
+    // iOS 没有等价 systemUiVisibility 字段，给 0 用于兼容结构
+    [out setObject:@(0) forKey:@"systemUiVisibility"];
+    [out setObject:@(isFullscreen) forKey:@"isFullscreen"];
+    [out setObject:@(usedInsets) forKey:@"usedInsets"];
+    [out setObject:@(usedCutout) forKey:@"usedCutout"];
+    [out setObject:@(hasCutout) forKey:@"hasCutout"];
+    [out setObject:@(statusBarLikelyHidden) forKey:@"statusBarLikelyHidden"];
+    [out setObject:@(navigationBarLikelyHidden) forKey:@"navigationBarLikelyHidden"];
+
+    if (hasCutout) {
+        NSDictionary *cutoutSafeInsets = @{
+            @"safeLeft": @((int)llround(safeInsets.left * scale)),
+            @"safeTop": @((int)llround(safeInsets.top * scale)),
+            @"safeRight": @((int)llround(safeInsets.right * scale)),
+            @"safeBottom": @((int)llround(safeInsets.bottom * scale))
+        };
+        [out setObject:cutoutSafeInsets forKey:@"cutoutSafeInsets"];
+    } else {
+        [out setObject:[NSNull null] forKey:@"cutoutSafeInsets"];
+    }
+
+    NSDictionary *insets = @{
+        @"left": @((int)llround(safeInsets.left * scale)),
+        @"top": @((int)llround(safeInsets.top * scale)),
+        @"right": @((int)llround(safeInsets.right * scale)),
+        @"bottom": @((int)llround(safeInsets.bottom * scale))
+    };
+    [out setObject:insets forKey:@"insets"];
+
+    CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:out];
     [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
 }
 
